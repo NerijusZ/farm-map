@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Laukų žemėlapis</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1c1c1e; --muted: #6b7280; --card: #ffffff; --line: #e5e7eb; --accent: #2e7d32;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17212b; --fg: #f5f5f5; --muted: #9ca3af; --card: #1f2c38; --line: #2f3e4e; --accent: #66bb6a; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  #app { display: flex; flex-direction: column; height: 100%; }
+  header { padding: 10px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  header h1 { font-size: 16px; margin: 0; }
+  header .meta { color: var(--muted); font-size: 13px; text-align: right; }
+  #map { flex: 1; min-height: 200px; }
+  #nocoords { border-top: 1px solid var(--line); padding: 8px 16px; font-size: 13px; color: var(--muted); max-height: 28%; overflow: auto; display: none; }
+  #nocoords strong { color: var(--fg); }
+  #nocoords ul { margin: 4px 0 0; padding-left: 18px; }
+  #msg { position: absolute; inset: 56px 0 0 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; background: var(--bg); z-index: 1000; color: var(--muted); }
+  .field-label { font-weight: 600; background: var(--card); color: var(--fg); border: 1px solid var(--line); box-shadow: none; padding: 1px 6px; }
+  .popup h2 { margin: 0 0 4px; font-size: 15px; }
+  .popup div { margin: 1px 0; }
+  .popup .k { color: #6b7280; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header><h1>Laukų žemėlapis</h1><div class="meta" id="meta">Kraunama…</div></header>
+  <div id="map"></div>
+  <div id="nocoords"></div>
+</div>
+<div id="msg"></div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ===================== NUSTATYMAI =====================
+// n8n duomenų API adresas (workflow „Map: Data API“, Production URL):
+const API_URL = 'https://n8n.srv1966090.hstgr.cloud/webhook/farm-map-data';
+// Pradinė žemėlapio vieta, jei nėra nė vieno taško (Lietuva)
+const DEFAULT_CENTER = [55.17, 23.9], DEFAULT_ZOOM = 7;
+
+// ===================== PAGALBINĖS =====================
+const $ = (id) => document.getElementById(id);
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
+
+const fmtHa = (n) => (n === null || n === undefined || n === '') ? null
+  : new Intl.NumberFormat('lt-LT', { maximumFractionDigits: 2 }).format(Number(n)) + ' ha';
+
+function showMessage(text) { const m = $('msg'); m.textContent = text; m.style.display = 'flex'; }
+function row(parent, key, value) {            // saugus (be innerHTML) eilutės pridėjimas
+  const d = document.createElement('div');
+  const k = document.createElement('span'); k.className = 'k'; k.textContent = key + ': ';
+  d.appendChild(k); d.appendChild(document.createTextNode(value)); parent.appendChild(d);
+}
+function popupFor(f) {
+  const box = document.createElement('div'); box.className = 'popup';
+  const h = document.createElement('h2'); h.textContent = f.name || '(be pavadinimo)'; box.appendChild(h);
+  row(box, 'Sezonas', f.season_year + ' m.');
+  const ha = fmtHa(f.area_ha); if (ha) row(box, 'Plotas', ha);
+  row(box, 'Kultūros', (f.crops && f.crops.length) ? f.crops.join(', ') : 'nenurodyta');
+  return box;
+}
+
+// ===================== ŽEMĖLAPIS =====================
+const map = L.map('map', { zoomControl: true, attributionControl: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+}).addTo(map);
+
+function render(data) {
+  const fields = data.fields || [];
+  const withXY = fields.filter(f => Number.isFinite(Number(f.lat)) && Number.isFinite(Number(f.lon)) && f.lat !== null && f.lon !== null);
+  const without = fields.filter(f => !withXY.includes(f));
+
+  $('meta').textContent = `${data.season} m. sezonas · ${withXY.length} iš ${fields.length} laukų žemėlapyje`;
+
+  const pts = [];
+  for (const f of withXY) {
+    const ll = [Number(f.lat), Number(f.lon)];
+    pts.push(ll);
+    const m = L.circleMarker(ll, { radius: 9, color: '#1b5e20', weight: 2, fillColor: '#43a047', fillOpacity: 0.85 }).addTo(map);
+    // Leaflet tekstines eilutes laiko HTML, todėl etiketei perduodame DOM elementą (saugu naudotojo įvestam pavadinimui)
+    const label = document.createElement('span'); label.textContent = f.name || '';
+    m.bindTooltip(label, { permanent: true, direction: 'right', offset: [10, 0], className: 'field-label' });
+    m.bindPopup(popupFor(f));
+  }
+  if (pts.length === 1) map.setView(pts[0], 15);
+  else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
+
+  if (without.length) {
+    const box = $('nocoords'); box.style.display = 'block'; box.textContent = '';
+    const s = document.createElement('strong'); s.textContent = `Be koordinačių (${without.length}):`; box.appendChild(s);
+    const ul = document.createElement('ul');
+    for (const f of without) { const li = document.createElement('li'); li.textContent = f.name || '(be pavadinimo)'; ul.appendChild(li); }
+    box.appendChild(ul);
+    map.invalidateSize();
+  }
+  if (!fields.length) showMessage(`${data.season} m. sezone aktyvių laukų nėra.`);
+  else if (!withXY.length) showMessage('Nė vienas laukas dar neturi koordinačių, todėl žemėlapyje nėra ką rodyti.');
+}
+
+// ===================== DUOMENYS =====================
+(async function init() {
+  const params = new URLSearchParams(location.search);
+  const token = params.get('t') || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
+  if (!token) { $('meta').textContent = ''; return showMessage('Žemėlapį atidarykite per asistento mygtuką Telegram pokalbyje.'); }
+  try {
+    const res = await fetch(API_URL + (API_URL.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(token), { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data.valid) { $('meta').textContent = ''; return showMessage('Nuoroda nebegalioja. Paprašykite asistento naujo žemėlapio.'); }
+    render(data);
+  } catch (e) {
+    $('meta').textContent = '';
+    showMessage('Nepavyko gauti duomenų. Pabandykite dar kartą vėliau.');
+  }
+})();
+</script>
+</body>
+</html>
