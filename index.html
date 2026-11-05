@@ -6,28 +6,43 @@
 <title>Laukų žemėlapis</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-  :root {
-    --bg: #ffffff; --fg: #1c1c1e; --muted: #6b7280; --card: #ffffff; --line: #e5e7eb; --accent: #2e7d32;
-  }
+  :root { --bg:#fff; --fg:#1c1c1e; --muted:#6b7280; --card:#fff; --line:#e5e7eb; --accent:#2e7d32; --accent-fg:#fff; --danger:#c62828; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #17212b; --fg: #f5f5f5; --muted: #9ca3af; --card: #1f2c38; --line: #2f3e4e; --accent: #66bb6a; }
+    :root { --bg:#17212b; --fg:#f5f5f5; --muted:#9ca3af; --card:#1f2c38; --line:#2f3e4e; --accent:#66bb6a; --accent-fg:#10210f; --danger:#ef5350; }
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
-    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  #app { display: flex; flex-direction: column; height: 100%; }
-  header { padding: 10px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-  header h1 { font-size: 16px; margin: 0; }
-  header .meta { color: var(--muted); font-size: 13px; text-align: right; }
-  #map { flex: 1; min-height: 200px; }
-  #nocoords { border-top: 1px solid var(--line); padding: 8px 16px; font-size: 13px; color: var(--muted); max-height: 28%; overflow: auto; display: none; }
-  #nocoords strong { color: var(--fg); }
-  #nocoords ul { margin: 4px 0 0; padding-left: 18px; }
-  #msg { position: absolute; inset: 56px 0 0 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; background: var(--bg); z-index: 1000; color: var(--muted); }
-  .field-label { font-weight: 600; background: var(--card); color: var(--fg); border: 1px solid var(--line); box-shadow: none; padding: 1px 6px; }
-  .popup h2 { margin: 0 0 4px; font-size: 15px; }
-  .popup div { margin: 1px 0; }
-  .popup .k { color: #6b7280; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  #app { display:flex; flex-direction:column; height:100%; position:relative; }
+  header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+  header h1 { font-size:16px; margin:0; }
+  header .meta { color:var(--muted); font-size:13px; text-align:right; }
+  #map { flex:1; min-height:200px; }
+  #nocoords { border-top:1px solid var(--line); padding:8px 16px; font-size:13px; color:var(--muted); max-height:30%; overflow:auto; display:none; }
+  #nocoords strong { color:var(--fg); }
+  #nocoords ul { margin:4px 0 0; padding:0; list-style:none; }
+  #nocoords li { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 0; color:var(--fg); }
+  #msg { position:absolute; inset:56px 0 0 0; display:none; align-items:center; justify-content:center; padding:24px; text-align:center; background:var(--bg); z-index:1000; color:var(--muted); }
+  .field-label { font-weight:600; background:var(--card); color:var(--fg); border:1px solid var(--line); box-shadow:none; padding:1px 6px; }
+  .popup h2 { margin:0 0 4px; font-size:15px; }
+  .popup div { margin:1px 0; }
+  .popup .k { color:#6b7280; }
+  .popup .note { color:#b45309; font-size:12px; }
+  .btn { font:inherit; font-size:14px; padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  .btn.primary { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); font-weight:600; }
+  .btn.danger { color:var(--danger); border-color:var(--danger); }
+  .btn:disabled { opacity:.45; cursor:default; }
+  .popup .btns { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  #draw { display:none; border-top:1px solid var(--line); padding:10px 16px calc(10px + env(safe-area-inset-bottom)); background:var(--card); }
+  #draw .t { font-weight:600; }
+  #draw .h { color:var(--muted); font-size:13px; margin:2px 0 8px; min-height:18px; }
+  #draw .h.err { color:var(--danger); }
+  #draw .btns { display:flex; gap:8px; flex-wrap:wrap; }
+  .vtx { width:18px; height:18px; border-radius:50%; background:#fff; border:3px solid #e65100; box-shadow:0 0 0 1px rgba(0,0,0,.35); }
+  #modal { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.45); z-index:2000; padding:20px; }
+  #modal .box { background:var(--card); color:var(--fg); border-radius:12px; padding:16px; max-width:420px; width:100%; }
+  #modal .box p { margin:0 0 14px; }
+  #modal .btns { display:flex; flex-direction:column; gap:8px; }
+  #toast { position:absolute; left:50%; bottom:90px; transform:translateX(-50%); background:#323232; color:#fff; padding:8px 14px; border-radius:20px; font-size:14px; z-index:2500; display:none; max-width:90%; text-align:center; }
 </style>
 </head>
 <body>
@@ -35,6 +50,18 @@
   <header><h1>Laukų žemėlapis</h1><div class="meta" id="meta">Kraunama…</div></header>
   <div id="map"></div>
   <div id="nocoords"></div>
+  <div id="draw">
+    <div class="t" id="drawTitle"></div>
+    <div class="h" id="drawHint"></div>
+    <div class="btns">
+      <button class="btn" id="bUndo">↶ Atšaukti tašką</button>
+      <button class="btn" id="bClear">Išvalyti</button>
+      <button class="btn primary" id="bDone">Išsaugoti</button>
+      <button class="btn" id="bCancel">Atsisakyti</button>
+    </div>
+  </div>
+  <div id="modal"><div class="box"><p id="modalText"></p><div class="btns" id="modalBtns"></div></div></div>
+  <div id="toast"></div>
 </div>
 <div id="msg"></div>
 
@@ -42,87 +69,285 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 // ===================== NUSTATYMAI =====================
-// n8n duomenų API adresas (workflow „Map: Data API“, Production URL):
-const API_URL = 'https://n8n.srv1966090.hstgr.cloud/webhook/farm-map-data';
-// Pradinė žemėlapio vieta, jei nėra nė vieno taško (Lietuva)
-const DEFAULT_CENTER = [55.17, 23.9], DEFAULT_ZOOM = 7;
+// n8n adresai (workflow „Map: Data API“ ir „Map: Save Polygon“, Production URL):
+const API_URL  = 'https://n8n.srv1966090.hstgr.cloud/webhook/farm-map-data';
+const SAVE_URL = 'https://n8n.srv1966090.hstgr.cloud/webhook/farm-map-save';
+const DEFAULT_CENTER = [55.17, 23.9], DEFAULT_ZOOM = 7;   // Lietuva, kai nėra nė vieno lauko
+
+// ===== Geometrijos pagalbinės funkcijos (be išorinių bibliotekų) =====
+// Įvestis: GeoJSON Polygon { type:'Polygon', coordinates:[ [ [lon,lat], ... ] ] }
+const LT = { minLat: 53.85, maxLat: 56.50, minLon: 20.90, maxLon: 26.90 };   // Lietuvos apimantis stačiakampis
+const LIMITS = { minVertices: 3, maxVertices: 500, minHa: 0.01, maxHa: 5000 };
+
+function analyzePolygon(gj) {
+  const bad = (code, message) => ({ ok: false, code, message });
+  if (!gj || gj.type !== 'Polygon' || !Array.isArray(gj.coordinates) || !Array.isArray(gj.coordinates[0])) return bad('bad_format', 'Neteisingas kontūro formatas.');
+  if (gj.coordinates.length > 1) return bad('holes', 'Kontūras su skylėmis nepalaikomas.');
+  let ring = [];
+  for (const p of gj.coordinates[0]) {
+    if (!Array.isArray(p) || p.length < 2) return bad('bad_format', 'Neteisingas kontūro taškas.');
+    const lon = Number(p[0]), lat = Number(p[1]);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return bad('bad_format', 'Neteisingas kontūro taškas.');
+    ring.push([Math.round(lon * 1e6) / 1e6, Math.round(lat * 1e6) / 1e6]);
+  }
+  // uždaryta grandinė -> atvira; pašaliname iš eilės pasikartojančius taškus
+  if (ring.length > 1 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]) ring.pop();
+  ring = ring.filter((p, i) => i === 0 || p[0] !== ring[i - 1][0] || p[1] !== ring[i - 1][1]);
+  if (ring.length < LIMITS.minVertices) return bad('too_few', 'Kontūrui reikia bent 3 taškų.');
+  if (ring.length > LIMITS.maxVertices) return bad('too_many', `Per daug taškų (daugiausia ${LIMITS.maxVertices}).`);
+  for (const [lon, lat] of ring) {
+    if (lat < LT.minLat || lat > LT.maxLat || lon < LT.minLon || lon > LT.maxLon) return bad('outside', 'Kontūras už Lietuvos ribų.');
+  }
+  // lokali plokščioji projekcija metrais (pakankamai tiksli lauko dydžio objektams)
+  const lat0 = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+  const lon0 = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+  const R = 6371008.8, k = Math.PI / 180, cosL = Math.cos(lat0 * k);
+  const xy = ring.map(([lon, lat]) => [(lon - lon0) * k * R * cosL, (lat - lat0) * k * R]);
+  // savikirtų patikra (O(n^2))
+  const n = xy.length;
+  const orient = (a, b, c) => { const v = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]); return v > 1e-9 ? 1 : v < -1e-9 ? -1 : 0; };
+  const onSeg = (a, b, c) => Math.min(a[0], b[0]) - 1e-9 <= c[0] && c[0] <= Math.max(a[0], b[0]) + 1e-9 && Math.min(a[1], b[1]) - 1e-9 <= c[1] && c[1] <= Math.max(a[1], b[1]) + 1e-9;
+  const cross = (a, b, c, d) => {
+    const o1 = orient(a, b, c), o2 = orient(a, b, d), o3 = orient(c, d, a), o4 = orient(c, d, b);
+    if (o1 !== o2 && o3 !== o4) return true;
+    return (o1 === 0 && onSeg(a, b, c)) || (o2 === 0 && onSeg(a, b, d)) || (o3 === 0 && onSeg(c, d, a)) || (o4 === 0 && onSeg(c, d, b));
+  };
+  for (let i = 0; i < n; i++) {
+    const a = xy[i], b = xy[(i + 1) % n];
+    for (let j = i + 1; j < n; j++) {
+      if (j === i || (j + 1) % n === i || (i + 1) % n === j) continue;   // gretimi kraštiniai dalinasi tašku
+      if (cross(a, b, xy[j], xy[(j + 1) % n])) return bad('self_intersect', 'Kontūras kerta pats save. Sutvarkykite taškų eiliškumą.');
+    }
+  }
+  // plotas ir svorio centras (shoelace)
+  let A2 = 0, cx = 0, cy = 0;
+  for (let i = 0; i < n; i++) {
+    const [x1, y1] = xy[i], [x2, y2] = xy[(i + 1) % n], c = x1 * y2 - x2 * y1;
+    A2 += c; cx += (x1 + x2) * c; cy += (y1 + y2) * c;
+  }
+  const area_m2 = Math.abs(A2) / 2;
+  if (area_m2 === 0) return bad('zero_area', 'Kontūro plotas lygus nuliui.');
+  const area_ha = area_m2 / 10000;
+  if (area_ha < LIMITS.minHa) return bad('too_small', 'Kontūras per mažas.');
+  if (area_ha > LIMITS.maxHa) return bad('too_big', 'Kontūras per didelis.');
+  cx = cx / (3 * A2); cy = cy / (3 * A2);
+  const clon = lon0 + cx / (R * cosL) / k, clat = lat0 + cy / R / k;
+  const closed = ring.concat([ring[0]]);
+  return { ok: true, geojson: { type: 'Polygon', coordinates: [closed] }, area_ha: Math.round(area_ha * 10000) / 10000,
+    lat: Math.round(clat * 1e6) / 1e6, lon: Math.round(clon * 1e6) / 1e6, vertices: ring.length };
+}
+
 
 // ===================== PAGALBINĖS =====================
 const $ = (id) => document.getElementById(id);
 const tg = window.Telegram && window.Telegram.WebApp;
 if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
-
-const fmtHa = (n) => (n === null || n === undefined || n === '') ? null
-  : new Intl.NumberFormat('lt-LT', { maximumFractionDigits: 2 }).format(Number(n)) + ' ha';
+const nf = new Intl.NumberFormat('lt-LT', { maximumFractionDigits: 2 });
+const fmtHa = (n) => (n === null || n === undefined || n === '' || !Number.isFinite(Number(n))) ? null : nf.format(Number(n)) + ' ha';
+const hasXY = (f) => f.lat !== null && f.lon !== null && f.lat !== undefined && f.lon !== undefined && Number.isFinite(Number(f.lat)) && Number.isFinite(Number(f.lon));
+const polyOf = (f) => (f && f.geometry && f.geometry.type === 'Polygon' && Array.isArray(f.geometry.coordinates) && f.geometry.coordinates[0]) ? f.geometry : null;
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+const btn = (text, cls, fn) => { const b = el('button', 'btn' + (cls ? ' ' + cls : ''), text); b.type = 'button'; b.addEventListener('click', fn); return b; };
 
 function showMessage(text) { const m = $('msg'); m.textContent = text; m.style.display = 'flex'; }
-function row(parent, key, value) {            // saugus (be innerHTML) eilutės pridėjimas
-  const d = document.createElement('div');
-  const k = document.createElement('span'); k.className = 'k'; k.textContent = key + ': ';
-  d.appendChild(k); d.appendChild(document.createTextNode(value)); parent.appendChild(d);
+let toastTimer = null;
+function toast(text) { const t = $('toast'); t.textContent = text; t.style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.style.display = 'none'; }, 3500); }
+function ask(text, buttons) {                       // modalinis klausimas; grąžina pasirinkto mygtuko reikšmę
+  return new Promise((resolve) => {
+    $('modalText').textContent = text;
+    const box = $('modalBtns'); box.textContent = '';
+    for (const b of buttons) box.appendChild(btn(b.label, b.cls || '', () => { $('modal').style.display = 'none'; resolve(b.value); }));
+    $('modal').style.display = 'flex';
+  });
 }
-function popupFor(f) {
-  const box = document.createElement('div'); box.className = 'popup';
-  const h = document.createElement('h2'); h.textContent = f.name || '(be pavadinimo)'; box.appendChild(h);
-  row(box, 'Sezonas', f.season_year + ' m.');
-  const ha = fmtHa(f.area_ha); if (ha) row(box, 'Plotas', ha);
-  row(box, 'Kultūros', (f.crops && f.crops.length) ? f.crops.join(', ') : 'nenurodyta');
-  return box;
+function row(parent, key, value) {
+  const d = el('div'); d.appendChild(el('span', 'k', key + ': ')); d.appendChild(document.createTextNode(value)); parent.appendChild(d);
 }
 
 // ===================== ŽEMĖLAPIS =====================
 const map = L.map('map', { zoomControl: true, attributionControl: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-}).addTo(map);
+const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' });
+const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+osm.addTo(map);
+L.control.layers({ 'Žemėlapis': osm, 'Palydovinis': sat }, null, { position: 'topright' }).addTo(map);
+const fieldsLayer = L.featureGroup().addTo(map);
+let DATA = null, canEdit = false, TOKEN = '';
 
-function render(data) {
+function popupFor(f, kind) {
+  const box = el('div', 'popup');
+  box.appendChild(el('h2', '', f.name || '(be pavadinimo)'));
+  row(box, 'Sezonas', f.season_year + ' m.');
+  const ha = fmtHa(f.area_ha); if (ha) row(box, 'Plotas', ha);
+  row(box, 'Kultūros', (f.crops && f.crops.length) ? f.crops.join(', ') : 'nenurodyta');
+  if (kind === 'circle') box.appendChild(el('div', 'note', 'Apytikslis ratas pagal plotą. Nubraižykite tikrą kontūrą.'));
+  if (kind === 'point') box.appendChild(el('div', 'note', 'Žinoma tik vieta. Nubraižykite lauko kontūrą.'));
+  if (canEdit) {
+    const bs = el('div', 'btns');
+    if (kind === 'polygon') { bs.appendChild(btn('Keisti kontūrą', 'primary', () => startDraw(f, true))); bs.appendChild(btn('Naikinti kontūrą', 'danger', () => deleteContour(f))); }
+    else bs.appendChild(btn('Braižyti kontūrą', 'primary', () => startDraw(f, false)));
+    box.appendChild(bs);
+  }
+  return box;
+}
+
+function render(data, fit) {
+  DATA = data; fieldsLayer.clearLayers();
   const fields = data.fields || [];
-  const withXY = fields.filter(f => Number.isFinite(Number(f.lat)) && Number.isFinite(Number(f.lon)) && f.lat !== null && f.lon !== null);
-  const without = fields.filter(f => !withXY.includes(f));
-
-  $('meta').textContent = `${data.season} m. sezonas · ${withXY.length} iš ${fields.length} laukų žemėlapyje`;
-
-  const pts = [];
-  for (const f of withXY) {
-    const ll = [Number(f.lat), Number(f.lon)];
-    pts.push(ll);
-    const m = L.circleMarker(ll, { radius: 9, color: '#1b5e20', weight: 2, fillColor: '#43a047', fillOpacity: 0.85 }).addTo(map);
-    // Leaflet tekstines eilutes laiko HTML, todėl etiketei perduodame DOM elementą (saugu naudotojo įvestam pavadinimui)
-    const label = document.createElement('span'); label.textContent = f.name || '';
-    m.bindTooltip(label, { permanent: true, direction: 'right', offset: [10, 0], className: 'field-label' });
-    m.bindPopup(popupFor(f));
+  const pts = [], noShape = [];
+  let shown = 0;
+  for (const f of fields) {
+    const g = polyOf(f);
+    const label = el('span', '', f.name || '');
+    let layer = null, kind = null;
+    if (g) {
+      kind = 'polygon';
+      const ll = g.coordinates[0].map(p => [p[1], p[0]]);
+      layer = L.polygon(ll, { color: '#1b5e20', weight: 2, fillColor: '#43a047', fillOpacity: 0.35 });
+      ll.forEach(p => pts.push(p));
+    } else if (hasXY(f) && Number(f.area_ha) > 0) {
+      kind = 'circle';
+      layer = L.circle([Number(f.lat), Number(f.lon)], { radius: Math.sqrt(Number(f.area_ha) * 10000 / Math.PI), color: '#e65100', weight: 2, dashArray: '6 5', fillColor: '#ffb74d', fillOpacity: 0.25 });
+      pts.push([Number(f.lat), Number(f.lon)]);
+    } else if (hasXY(f)) {
+      kind = 'point';
+      layer = L.circleMarker([Number(f.lat), Number(f.lon)], { radius: 9, color: '#1b5e20', weight: 2, fillColor: '#43a047', fillOpacity: 0.85 });
+      pts.push([Number(f.lat), Number(f.lon)]);
+    }
+    if (!layer) { noShape.push(f); continue; }
+    shown++;
+    layer.addTo(fieldsLayer);
+    // Leaflet tekstines eilutes laiko HTML, todėl perduodame DOM elementus (saugu naudotojo įvestam pavadinimui)
+    layer.bindTooltip(label, { permanent: true, direction: 'center', className: 'field-label' });
+    layer.bindPopup(popupFor(f, kind));
   }
-  if (pts.length === 1) map.setView(pts[0], 15);
-  else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
-
-  if (without.length) {
-    const box = $('nocoords'); box.style.display = 'block'; box.textContent = '';
-    const s = document.createElement('strong'); s.textContent = `Be koordinačių (${without.length}):`; box.appendChild(s);
-    const ul = document.createElement('ul');
-    for (const f of without) { const li = document.createElement('li'); li.textContent = f.name || '(be pavadinimo)'; ul.appendChild(li); }
+  $('meta').textContent = `${data.season} m. sezonas · ${shown} iš ${fields.length} laukų žemėlapyje`;
+  if (fit) {
+    if (pts.length === 1) map.setView(pts[0], 15);
+    else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 17 });
+  }
+  const box = $('nocoords'); box.textContent = '';
+  if (noShape.length) {
+    box.style.display = 'block';
+    box.appendChild(el('strong', '', `Be vietos žemėlapyje (${noShape.length}):`));
+    const ul = el('ul');
+    for (const f of noShape) {
+      const li = el('li'); li.appendChild(el('span', '', f.name || '(be pavadinimo)'));
+      if (canEdit) li.appendChild(btn('Braižyti', '', () => startDraw(f, false)));
+      ul.appendChild(li);
+    }
     box.appendChild(ul);
-    map.invalidateSize();
-  }
+  } else box.style.display = 'none';
+  map.invalidateSize();
   if (!fields.length) showMessage(`${data.season} m. sezone aktyvių laukų nėra.`);
-  else if (!withXY.length) showMessage('Nė vienas laukas dar neturi koordinačių, todėl žemėlapyje nėra ką rodyti.');
+}
+
+// ===================== BRAIŽYMAS =====================
+const D = { field: null, pts: [], markers: [], shape: null, active: false };
+function drawLatLngs() { return D.markers.map(m => m.getLatLng()); }
+function toGeoJson() { const c = drawLatLngs().map(p => [p.lng, p.lat]); return { type: 'Polygon', coordinates: [c] }; }
+function refreshShape() {
+  const ll = drawLatLngs().map(p => [p.lat, p.lng]);
+  if (D.shape) { fieldsLayer.removeLayer(D.shape); D.shape = null; }
+  if (ll.length >= 3) D.shape = L.polygon(ll, { color: '#e65100', weight: 2, fillColor: '#ffb74d', fillOpacity: 0.3, interactive: false });
+  else if (ll.length === 2) D.shape = L.polyline(ll, { color: '#e65100', weight: 2, interactive: false });
+  if (D.shape) D.shape.addTo(fieldsLayer);
+  const hint = $('drawHint'); hint.classList.remove('err');
+  if (ll.length < 3) { hint.textContent = ll.length ? `Pridėkite dar bent ${3 - ll.length} tašk.` : 'Spauskite žemėlapyje ties lauko kampais. Taškus galima tempti.'; $('bDone').disabled = true; }
+  else {
+    const g = analyzePolygon(toGeoJson());
+    if (g.ok) { hint.textContent = `Plotas ≈ ${fmtHa(g.area_ha)} · taškų: ${g.vertices}`; $('bDone').disabled = false; }
+    else { hint.textContent = g.message; hint.classList.add('err'); $('bDone').disabled = true; }
+  }
+  $('bUndo').disabled = !ll.length; $('bClear').disabled = !ll.length;
+}
+function addVertex(latlng) {
+  const m = L.marker(latlng, { draggable: true, icon: L.divIcon({ className: 'vtx', iconSize: [18, 18] }) });
+  m.on('drag', refreshShape); m.on('dragend', refreshShape);
+  m.addTo(fieldsLayer); D.markers.push(m);
+}
+function startDraw(f, edit) {
+  if (D.active) cancelDraw();
+  map.closePopup();
+  D.active = true; D.field = f;
+  const g = polyOf(f);
+  if (edit && g) { const ring = g.coordinates[0].slice(0, -1); ring.forEach(p => addVertex([p[1], p[0]])); }
+  else if (hasXY(f)) map.setView([Number(f.lat), Number(f.lon)], Math.max(map.getZoom ? map.getZoom() : 0, 16));
+  $('drawTitle').textContent = (edit ? 'Kontūro keitimas: ' : 'Kontūro braižymas: ') + (f.name || '');
+  $('draw').style.display = 'block'; map.invalidateSize();
+  refreshShape();
+}
+function endDraw() {
+  D.markers.forEach(m => fieldsLayer.removeLayer(m)); D.markers = [];
+  if (D.shape) { fieldsLayer.removeLayer(D.shape); D.shape = null; }
+  D.active = false; D.field = null; $('draw').style.display = 'none'; map.invalidateSize();
+}
+function cancelDraw() { endDraw(); }
+map.on('click', (e) => { if (D.active && e && e.latlng) { addVertex(e.latlng); refreshShape(); } });
+$('bUndo').addEventListener('click', () => { const m = D.markers.pop(); if (m) fieldsLayer.removeLayer(m); refreshShape(); });
+$('bClear').addEventListener('click', () => { D.markers.forEach(m => fieldsLayer.removeLayer(m)); D.markers = []; refreshShape(); });
+$('bCancel').addEventListener('click', cancelDraw);
+$('bDone').addEventListener('click', () => saveContour());
+
+async function post(body) {
+  const res = await fetch(SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+function describe(r) {
+  if (r.status === 'invalid_token') return 'Nuoroda nebegalioja. Paprašykite asistento naujo žemėlapio.';
+  return r.message || 'Nepavyko išsaugoti.';
+}
+async function saveContour() {
+  const f = D.field; if (!f) return;
+  const g = analyzePolygon(toGeoJson());
+  if (!g.ok) return;
+  $('bDone').disabled = true;
+  try {
+    let r = await post({ token: TOKEN, field_id: f.field_id, geojson: g.geojson });
+    if (r.status === 'area_decision') {
+      const choice = await ask(`Nubraižyto kontūro plotas ${fmtHa(r.poly_area_ha)}, o lauko „${r.name}“ plotas sistemoje ${fmtHa(r.old_area_ha)}. Ką daryti?`, [
+        { label: `Atnaujinti lauko plotą į ${fmtHa(r.poly_area_ha)}`, cls: 'primary', value: 'true' },
+        { label: `Palikti ${fmtHa(r.old_area_ha)}`, value: 'false' },
+        { label: 'Grįžti prie braižymo', value: 'back' }]);
+      if (choice === 'back') { $('bDone').disabled = false; return; }
+      r = await post({ token: TOKEN, field_id: f.field_id, geojson: g.geojson, update_area: choice === 'true' });
+    }
+    if (r.status === 'saved') {
+      endDraw(); toast(r.area_changed ? `Kontūras išsaugotas, plotas atnaujintas: ${fmtHa(r.area_ha)}` : 'Kontūras išsaugotas');
+      await loadData(f.field_id);
+    } else { toast(describe(r)); $('bDone').disabled = false; }
+  } catch (e) { toast('Nepavyko išsaugoti. Patikrinkite ryšį ir bandykite dar kartą.'); $('bDone').disabled = false; }
+}
+async function deleteContour(f) {
+  map.closePopup();
+  const ok = await ask(`Naikinti lauko „${f.name}“ kontūrą? Lauko plotas ir kiti duomenys nesikeis.`, [{ label: 'Taip, naikinti', cls: 'danger', value: true }, { label: 'Ne', value: false }]);
+  if (!ok) return;
+  try {
+    const r = await post({ token: TOKEN, field_id: f.field_id, action: 'delete' });
+    if (r.status === 'deleted') { toast('Kontūras panaikintas'); await loadData(null); } else toast(describe(r));
+  } catch (e) { toast('Nepavyko panaikinti. Bandykite dar kartą.'); }
 }
 
 // ===================== DUOMENYS =====================
+async function loadData(focusId) {
+  const res = await fetch(API_URL + (API_URL.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(TOKEN), { headers: { 'Accept': 'application/json' } });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  if (!data.valid) { $('meta').textContent = ''; showMessage('Nuoroda nebegalioja. Paprašykite asistento naujo žemėlapio.'); return false; }
+  canEdit = data.can_edit === true;
+  render(data, !focusId);
+  if (focusId) {
+    const f = (data.fields || []).find(x => x.field_id === focusId), g = polyOf(f);
+    if (g) map.fitBounds(L.latLngBounds(g.coordinates[0].map(p => [p[1], p[0]])), { padding: [40, 40], maxZoom: 18 });
+  }
+  return true;
+}
 (async function init() {
   const params = new URLSearchParams(location.search);
-  const token = params.get('t') || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
-  if (!token) { $('meta').textContent = ''; return showMessage('Žemėlapį atidarykite per asistento mygtuką Telegram pokalbyje.'); }
-  try {
-    const res = await fetch(API_URL + (API_URL.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(token), { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if (!data.valid) { $('meta').textContent = ''; return showMessage('Nuoroda nebegalioja. Paprašykite asistento naujo žemėlapio.'); }
-    render(data);
-  } catch (e) {
-    $('meta').textContent = '';
-    showMessage('Nepavyko gauti duomenų. Pabandykite dar kartą vėliau.');
-  }
+  TOKEN = params.get('t') || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
+  if (!TOKEN) { $('meta').textContent = ''; return showMessage('Žemėlapį atidarykite per asistento mygtuką Telegram pokalbyje.'); }
+  try { await loadData(null); }
+  catch (e) { $('meta').textContent = ''; showMessage('Nepavyko gauti duomenų. Pabandykite dar kartą vėliau.'); }
 })();
 </script>
 </body>
