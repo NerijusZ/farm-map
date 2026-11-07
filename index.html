@@ -23,6 +23,7 @@
   #nocoords li { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 0; color:var(--fg); }
   #msg { position:absolute; inset:56px 0 0 0; display:none; align-items:center; justify-content:center; padding:24px; text-align:center; background:var(--bg); z-index:1000; color:var(--muted); }
   .field-label { font-weight:600; background:var(--card); color:var(--fg); border:1px solid var(--line); box-shadow:none; padding:1px 6px; }
+  .field-label .ha { font-weight:400; }
   .popup h2 { margin:0 0 4px; font-size:15px; }
   .popup div { margin:1px 0; }
   .popup .k { color:#6b7280; }
@@ -214,6 +215,8 @@ function render(data, fit) {
   for (const f of fields) {
     const g = polyOf(f);
     const label = el('span', '', f.name || '');
+    const haTxt = fmtHa(f.area_ha);
+    if (haTxt) label.appendChild(el('span', 'ha', ' · ' + haTxt));
     let layer = null, kind = null;
     if (g) {
       kind = 'polygon';
@@ -272,7 +275,10 @@ function refreshShape() {
   if (ll.length < 3) { hint.textContent = ll.length ? `Pridėkite dar bent ${3 - ll.length} tašk.` : 'Spauskite žemėlapyje ties lauko kampais. Taškus galima tempti.'; $('bDone').disabled = true; }
   else {
     const g = analyzePolygon(toGeoJson());
-    if (g.ok) { hint.textContent = `Plotas ≈ ${fmtHa(g.area_ha)} · taškų: ${g.vertices}`; $('bDone').disabled = false; }
+    if (g.ok) {
+      hint.textContent = `Plotas ≈ ${fmtHa(g.area_ha)} · taškų: ${g.vertices}`; $('bDone').disabled = false;
+      if (D.shape) D.shape.bindTooltip(el('span', '', '≈ ' + fmtHa(g.area_ha)), { permanent: true, direction: 'center', className: 'field-label' });   // plotas ant paties kontūro
+    }
     else { hint.textContent = g.message; hint.classList.add('err'); $('bDone').disabled = true; }
   }
   $('bUndo').disabled = !ll.length; $('bClear').disabled = !ll.length;
