@@ -175,7 +175,7 @@ osm.addTo(map);
 L.control.layers({ 'Žemėlapis': osm, 'Palydovinis': sat }, null, { position: 'topright' }).addTo(map);
 const fieldsLayer = L.featureGroup().addTo(map);
 let DATA = null, canEdit = false, TOKEN = '';
-const HOME_ZOOM = 12;          // ūkio vietos (iš profilio) mastelis
+const HOME_ZOOM = 14;          // ūkio vietos (iš profilio) mastelis
 let HOME = null, homeMarker = null;
 function setHome(h) {
   const ok = h && Number.isFinite(Number(h.lat)) && Number.isFinite(Number(h.lon));
