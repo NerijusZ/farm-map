@@ -42,6 +42,8 @@
   #modal .box { background:var(--card); color:var(--fg); border-radius:12px; padding:16px; max-width:420px; width:100%; }
   #modal .box p { margin:0 0 14px; }
   #modal .btns { display:flex; flex-direction:column; gap:8px; }
+  #homeBtn { position:absolute; left:10px; top:66px; z-index:900; display:none; }
+  .flag { font-size:26px; line-height:26px; text-align:center; filter:drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
   #toast { position:absolute; left:50%; bottom:90px; transform:translateX(-50%); background:#323232; color:#fff; padding:8px 14px; border-radius:20px; font-size:14px; z-index:2500; display:none; max-width:90%; text-align:center; }
 </style>
 </head>
@@ -49,6 +51,7 @@
 <div id="app">
   <header><h1>Laukų žemėlapis</h1><div class="meta" id="meta">Kraunama…</div></header>
   <div id="map"></div>
+  <button class="btn" id="homeBtn" type="button">🚩 Mano ūkis</button>
   <div id="nocoords"></div>
   <div id="draw">
     <div class="t" id="drawTitle"></div>
@@ -172,6 +175,19 @@ osm.addTo(map);
 L.control.layers({ 'Žemėlapis': osm, 'Palydovinis': sat }, null, { position: 'topright' }).addTo(map);
 const fieldsLayer = L.featureGroup().addTo(map);
 let DATA = null, canEdit = false, TOKEN = '';
+const HOME_ZOOM = 12;          // ūkio vietos (iš profilio) mastelis
+let HOME = null, homeMarker = null;
+function setHome(h) {
+  const ok = h && Number.isFinite(Number(h.lat)) && Number.isFinite(Number(h.lon));
+  HOME = ok ? [Number(h.lat), Number(h.lon)] : null;
+  if (homeMarker) { map.removeLayer(homeMarker); homeMarker = null; }
+  if (HOME) {
+    homeMarker = L.marker(HOME, { interactive: false, keyboard: false, icon: L.divIcon({ className: 'flag', html: '🚩', iconSize: [28, 28], iconAnchor: [6, 26] }) });
+    homeMarker.addTo(map);
+  }
+  $('homeBtn').style.display = HOME ? 'block' : 'none';
+}
+$('homeBtn').addEventListener('click', () => { if (HOME) map.setView(HOME, HOME_ZOOM); });
 
 function popupFor(f, kind) {
   const box = el('div', 'popup');
@@ -224,6 +240,7 @@ function render(data, fit) {
   if (fit) {
     if (pts.length === 1) map.setView(pts[0], 15);
     else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 17 });
+    else if (HOME) map.setView(HOME, HOME_ZOOM);          // laukų žemėlapyje nėra: ūkio vieta iš profilio
   }
   const box = $('nocoords'); box.textContent = '';
   if (noShape.length) {
@@ -271,7 +288,8 @@ function startDraw(f, edit) {
   D.active = true; D.field = f;
   const g = polyOf(f);
   if (edit && g) { const ring = g.coordinates[0].slice(0, -1); ring.forEach(p => addVertex([p[1], p[0]])); }
-  else if (hasXY(f)) map.setView([Number(f.lat), Number(f.lon)], Math.max(map.getZoom ? map.getZoom() : 0, 16));
+  else if (hasXY(f)) map.setView([Number(f.lat), Number(f.lon)], Math.max(map.getZoom(), 16));
+  else if (HOME && map.getZoom() < HOME_ZOOM) map.setView(HOME, 15);      // lauko vietos nėra: pradedame ties ūkio vieta
   $('drawTitle').textContent = (edit ? 'Kontūro keitimas: ' : 'Kontūro braižymas: ') + (f.name || '');
   $('draw').style.display = 'block'; map.invalidateSize();
   refreshShape();
@@ -335,6 +353,7 @@ async function loadData(focusId) {
   const data = await res.json();
   if (!data.valid) { $('meta').textContent = ''; showMessage('Nuoroda nebegalioja. Paprašykite asistento naujo žemėlapio.'); return false; }
   canEdit = data.can_edit === true;
+  setHome(data.home);
   render(data, !focusId);
   if (focusId) {
     const f = (data.fields || []).find(x => x.field_id === focusId), g = polyOf(f);
