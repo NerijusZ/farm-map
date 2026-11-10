@@ -30,7 +30,7 @@
   .field-label { white-space:nowrap; text-align:center; line-height:1.25; }
   .field-label .cr { display:block; font-weight:400; font-size:12px; }
   #nocoords li { align-items:flex-start; }
-  #nocoords li .inf { display:flex; flex-direction:column; min-width:0; }
+  #nocoords li .inf { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #nocoords li .inf .cr, #nocoords li .inf .ha { color:var(--muted); font-size:13px; }
   .popup h2 { margin:0 0 4px; font-size:15px; }
   .popup div { margin:1px 0; }
@@ -276,8 +276,8 @@ function render(data, fit) {
     const ul = el('ul');
     for (const f of noShape) {
       const li = el('li'); const inf = el('span', 'inf'); inf.appendChild(el('span', '', f.name || '(be pavadinimo)'));
-      const ha2 = fmtHa(f.area_ha); if (ha2) inf.appendChild(el('span', 'ha', ha2));
-      if (cropsTxt(f)) inf.appendChild(el('span', 'cr', cropsTxt(f)));
+      const ha2 = fmtHa(f.area_ha); if (ha2) inf.appendChild(el('span', 'ha', ' · ' + ha2));
+      if (cropsTxt(f)) inf.appendChild(el('span', 'cr', ' · ' + cropsTxt(f)));
       li.appendChild(inf);
       if (canEdit) li.appendChild(btn('Braižyti', '', () => startDraw(f, false)));
       ul.appendChild(li);
