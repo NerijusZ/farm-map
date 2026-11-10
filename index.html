@@ -16,12 +16,15 @@
   header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
   header h1 { font-size:16px; margin:0; }
   header .meta { color:var(--muted); font-size:13px; text-align:right; }
+  #seasons { display:none; gap:6px; padding:6px 16px; border-bottom:1px solid var(--line); overflow-x:auto; }
+  #seasons .btn { padding:5px 14px; white-space:nowrap; }
+  #seasons .btn.on { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); font-weight:600; }
   #map { flex:1; min-height:200px; }
   #nocoords { border-top:1px solid var(--line); padding:8px 16px; font-size:13px; color:var(--muted); max-height:30%; overflow:auto; display:none; }
   #nocoords strong { color:var(--fg); }
   #nocoords ul { margin:4px 0 0; padding:0; list-style:none; }
   #nocoords li { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 0; color:var(--fg); }
-  #msg { position:absolute; inset:56px 0 0 0; display:none; align-items:center; justify-content:center; padding:24px; text-align:center; background:var(--bg); z-index:1000; color:var(--muted); }
+  #msg { position:absolute; top:56px; left:0; right:0; bottom:0; display:none; align-items:center; justify-content:center; padding:24px; text-align:center; background:var(--bg); z-index:1000; color:var(--muted); }
   .field-label { font-weight:600; background:var(--card); color:var(--fg); border:1px solid var(--line); box-shadow:none; padding:1px 6px; }
   .field-label .ha { font-weight:400; }
   .popup h2 { margin:0 0 4px; font-size:15px; }
@@ -51,6 +54,7 @@
 <body>
 <div id="app">
   <header><h1>Laukų žemėlapis</h1><div class="meta" id="meta">Kraunama…</div></header>
+  <div id="seasons"></div>
   <div id="map"></div>
   <button class="btn" id="homeBtn" type="button">🚩 Mano ūkis</button>
   <div id="nocoords"></div>
@@ -153,7 +157,20 @@ const polyOf = (f) => (f && f.geometry && f.geometry.type === 'Polygon' && Array
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 const btn = (text, cls, fn) => { const b = el('button', 'btn' + (cls ? ' ' + cls : ''), text); b.type = 'button'; b.addEventListener('click', fn); return b; };
 
-function showMessage(text) { const m = $('msg'); m.textContent = text; m.style.display = 'flex'; }
+function showMessage(text) { const m = $('msg'); m.textContent = text; m.style.top = Math.ceil(($('seasons').style.display === 'flex' ? $('seasons') : document.querySelector('header')).getBoundingClientRect().bottom) + 'px'; m.style.display = 'flex'; }
+function hideMessage() { $('msg').style.display = 'none'; }
+let SEASON = null;
+function renderSeasons(data) {
+  const box = $('seasons'); box.textContent = '';
+  const list = data.seasons || [];
+  if (list.length < 2) { box.style.display = 'none'; }
+  else {
+    for (const y of list) { const b = btn(y + ' m.', y === data.season ? 'on' : '', () => switchSeason(y)); box.appendChild(b); }
+    box.style.display = 'flex';
+  }
+  $('homeBtn').style.top = (Math.ceil((box.style.display === 'flex' ? box : document.querySelector('header')).getBoundingClientRect().bottom) + 10) + 'px';
+}
+
 let toastTimer = null;
 function toast(text) { const t = $('toast'); t.textContent = text; t.style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.style.display = 'none'; }, 3500); }
 function ask(text, buttons) {                       // modalinis klausimas; grąžina pasirinkto mygtuko reikšmę
@@ -176,7 +193,7 @@ osm.addTo(map);
 L.control.layers({ 'Žemėlapis': osm, 'Palydovinis': sat }, null, { position: 'topright' }).addTo(map);
 const fieldsLayer = L.featureGroup().addTo(map);
 let DATA = null, canEdit = false, TOKEN = '';
-const HOME_ZOOM = 14;          // ūkio vietos (iš profilio) mastelis
+const HOME_ZOOM = 13;          // ūkio vietos (iš profilio) mastelis
 let HOME = null, homeMarker = null;
 function setHome(h) {
   const ok = h && Number.isFinite(Number(h.lat)) && Number.isFinite(Number(h.lon));
@@ -338,7 +355,7 @@ async function saveContour() {
     }
     if (r.status === 'saved') {
       endDraw(); toast(r.area_changed ? `Kontūras išsaugotas, plotas atnaujintas: ${fmtHa(r.area_ha)}` : 'Kontūras išsaugotas');
-      await loadData(f.field_id);
+      await loadData(f.field_id, null);
     } else { toast(describe(r)); $('bDone').disabled = false; }
   } catch (e) { toast('Nepavyko išsaugoti. Patikrinkite ryšį ir bandykite dar kartą.'); $('bDone').disabled = false; }
 }
@@ -353,12 +370,20 @@ async function deleteContour(f) {
 }
 
 // ===================== DUOMENYS =====================
-async function loadData(focusId) {
-  const res = await fetch(API_URL + (API_URL.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(TOKEN), { headers: { 'Accept': 'application/json' } });
+async function switchSeason(y) {
+  if (D.active) cancelDraw();
+  try { await loadData(null, y); } catch (e) { toast('Nepavyko įkelti sezono. Bandykite dar kartą.'); }
+}
+async function loadData(focusId, season) {
+  if (season) SEASON = season;
+  hideMessage();
+  const res = await fetch(API_URL + (API_URL.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(TOKEN) + (SEASON ? '&s=' + encodeURIComponent(SEASON) : ''), { headers: { 'Accept': 'application/json' } });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const data = await res.json();
   if (!data.valid) { $('meta').textContent = ''; showMessage('Nuoroda nebegalioja. Paprašykite asistento naujo žemėlapio.'); return false; }
   canEdit = data.can_edit === true;
+  SEASON = data.season;
+  renderSeasons(data);
   setHome(data.home);
   render(data, !focusId);
   if (focusId) {
