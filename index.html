@@ -235,8 +235,22 @@ function render(data, fit) {
   const fields = data.fields || [];
   const pts = [], noShape = [];
   let shown = 0;
+  const refSeen = new Set();                   // vieną buvusį kontūrą (pvz. padalinto lauko) piešiame tik kartą
   for (const f of fields) {
     const g = polyOf(f);
+    if (!g) {                                  // kol laukas neturi savo kontūro – rodome buvusių (sujungtų / padalintų) laukų kontūrus
+      for (const rf of (f.ref_geometries || [])) {
+        const rg = polyOf({ geometry: rf.geometry });
+        if (!rg) continue;
+        const rkey = rf.season_year + '|' + rf.name + '|' + JSON.stringify(rf.geometry.coordinates[0]);
+        if (refSeen.has(rkey)) continue; refSeen.add(rkey);
+        const ll0 = rg.coordinates[0].map(p => [p[1], p[0]]);
+        const refLayer = L.polygon(ll0, { color: '#f9a825', weight: 2, dashArray: '4 6', fillColor: '#fff176', fillOpacity: 0.28, interactive: false });
+        refLayer.addTo(fieldsLayer);
+        refLayer.bindTooltip(el('span', '', `Buvęs laukas „${rf.name}“ (${rf.season_year} m.)`), { sticky: true, className: 'field-label' });
+        ll0.forEach(p => pts.push(p));
+      }
+    }
     const label = el('span', '', f.name || '');
     const haTxt = fmtHa(f.area_ha);
     if (haTxt) label.appendChild(el('span', 'ha', ' · ' + haTxt));
@@ -273,6 +287,7 @@ function render(data, fit) {
   if (noShape.length) {
     box.style.display = 'block';
     box.appendChild(el('strong', '', `Be vietos žemėlapyje (${noShape.length}):`));
+    if (fields.some(x => !polyOf(x) && (x.ref_geometries || []).length)) box.appendChild(el('div', '', '🟨 Geltonai rodomi buvusių laukų kontūrai – pagal juos nubraižykite naują.'));
     const ul = el('ul');
     for (const f of noShape) {
       const li = el('li'); const inf = el('span', 'inf'); inf.appendChild(el('span', '', f.name || '(be pavadinimo)'));
