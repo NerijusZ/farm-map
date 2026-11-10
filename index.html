@@ -27,6 +27,11 @@
   #msg { position:absolute; top:56px; left:0; right:0; bottom:0; display:none; align-items:center; justify-content:center; padding:24px; text-align:center; background:var(--bg); z-index:1000; color:var(--muted); }
   .field-label { font-weight:600; background:var(--card); color:var(--fg); border:1px solid var(--line); box-shadow:none; padding:1px 6px; }
   .field-label .ha { font-weight:400; }
+  .field-label { white-space:nowrap; text-align:center; line-height:1.25; }
+  .field-label .cr { display:block; font-weight:400; font-size:12px; }
+  #nocoords li { align-items:flex-start; }
+  #nocoords li .inf { display:flex; flex-direction:column; min-width:0; }
+  #nocoords li .inf .cr, #nocoords li .inf .ha { color:var(--muted); font-size:13px; }
   .popup h2 { margin:0 0 4px; font-size:15px; }
   .popup div { margin:1px 0; }
   .popup .k { color:#6b7280; }
@@ -152,6 +157,7 @@ const tg = window.Telegram && window.Telegram.WebApp;
 if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
 const nf = new Intl.NumberFormat('lt-LT', { maximumFractionDigits: 2 });
 const fmtHa = (n) => (n === null || n === undefined || n === '' || !Number.isFinite(Number(n))) ? null : nf.format(Number(n)) + ' ha';
+const cropsTxt = (f) => (f.crops && f.crops.length) ? '🌾 ' + f.crops.join(', ') : '';
 const hasXY = (f) => f.lat !== null && f.lon !== null && f.lat !== undefined && f.lon !== undefined && Number.isFinite(Number(f.lat)) && Number.isFinite(Number(f.lon));
 const polyOf = (f) => (f && f.geometry && f.geometry.type === 'Polygon' && Array.isArray(f.geometry.coordinates) && f.geometry.coordinates[0]) ? f.geometry : null;
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -193,7 +199,7 @@ osm.addTo(map);
 L.control.layers({ 'Žemėlapis': osm, 'Palydovinis': sat }, null, { position: 'topright' }).addTo(map);
 const fieldsLayer = L.featureGroup().addTo(map);
 let DATA = null, canEdit = false, TOKEN = '';
-const HOME_ZOOM = 13;          // ūkio vietos (iš profilio) mastelis
+const HOME_ZOOM = 14;          // ūkio vietos (iš profilio) mastelis
 let HOME = null, homeMarker = null;
 function setHome(h) {
   const ok = h && Number.isFinite(Number(h.lat)) && Number.isFinite(Number(h.lon));
@@ -212,7 +218,7 @@ function popupFor(f, kind) {
   box.appendChild(el('h2', '', f.name || '(be pavadinimo)'));
   row(box, 'Sezonas', f.season_year + ' m.');
   const ha = fmtHa(f.area_ha); if (ha) row(box, 'Plotas', ha);
-  row(box, 'Kultūros', (f.crops && f.crops.length) ? f.crops.join(', ') : 'nenurodyta');
+  row(box, 'Kultūros', (f.crops && f.crops.length) ? '🌾 ' + f.crops.join(', ') : 'nenurodyta');
   if (kind === 'circle') box.appendChild(el('div', 'note', 'Apytikslis ratas pagal plotą. Nubraižykite tikrą kontūrą.'));
   if (kind === 'point') box.appendChild(el('div', 'note', 'Žinoma tik vieta. Nubraižykite lauko kontūrą.'));
   if (canEdit) {
@@ -234,6 +240,7 @@ function render(data, fit) {
     const label = el('span', '', f.name || '');
     const haTxt = fmtHa(f.area_ha);
     if (haTxt) label.appendChild(el('span', 'ha', ' · ' + haTxt));
+    if (cropsTxt(f)) label.appendChild(el('span', 'cr', cropsTxt(f)));
     let layer = null, kind = null;
     if (g) {
       kind = 'polygon';
@@ -268,7 +275,10 @@ function render(data, fit) {
     box.appendChild(el('strong', '', `Be vietos žemėlapyje (${noShape.length}):`));
     const ul = el('ul');
     for (const f of noShape) {
-      const li = el('li'); li.appendChild(el('span', '', f.name || '(be pavadinimo)'));
+      const li = el('li'); const inf = el('span', 'inf'); inf.appendChild(el('span', '', f.name || '(be pavadinimo)'));
+      const ha2 = fmtHa(f.area_ha); if (ha2) inf.appendChild(el('span', 'ha', ha2));
+      if (cropsTxt(f)) inf.appendChild(el('span', 'cr', cropsTxt(f)));
+      li.appendChild(inf);
       if (canEdit) li.appendChild(btn('Braižyti', '', () => startDraw(f, false)));
       ul.appendChild(li);
     }
